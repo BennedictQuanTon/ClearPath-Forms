@@ -12,6 +12,21 @@ Document owner: You (Founder / Solo builder, AI-assisted)
 
 > A public-benefits-style application form that a screen-reader user, motor-impaired user, or non-native English speaker can complete entirely by talking to their AI agent — because the page itself declares real, callable actions via WebMCP, instead of the agent guessing at a UI it can't reliably see.
 
+**The one sentence judges must remember:** Agents can already click and type on any form. ClearPath is not “AI fills a form.” It is a page that **declares** what the agent may do — and **withholds** `submit_form` until every required field is valid — so incomplete packets cannot be submitted by capability, not by hoping the model “checks first.”
+
+### Document status (as of Sun Aug 30, 2026, late afternoon)
+
+| Item | Status |
+|---|---|
+| Architecture in this file | Original plan **kept in full** below; this update **adds** shipped reality, storytelling, founder tasks, and video/camera notes |
+| App (Vite + React, 4 sections, 7 tools, gated `submit_form`) | **Shipped** on GitHub + Vercel |
+| Live URL | https://clear-path-forms.vercel.app |
+| Repo | https://github.com/BennedictQuanTon/ClearPath-Forms (public, MIT `LICENSE`) |
+| Judge-facing polish (no red errors on empty form, section % on required fields only, on-page `submit_form` badge, last-action log, greppable `document.modelContext.registerTool`) | **Coded locally** on `feature/webmcp-form-mvp` — **not on Vercel until commit + push + merge to `main`** |
+| Demo video / Devpost submit | **Founder** — not done |
+| Extra forms / backend / i18n | Still **out of scope** (founder confirmed: one MVP form; other sites do not get these tools) |
+| Teammate test guide | **§15** in this file — Vercel URL + ChatGPT steps |
+
 ---
 
 ## 1. Business Case (BA)
@@ -25,6 +40,12 @@ Long bureaucratic web forms (benefits applications, rental applications, governm
 Existing "AI form filler" products (RPA browser extensions, PDF autofillers) work by *scraping* the DOM or a PDF — they guess at structure, they're brittle, and they are not part of any open web standard. WebMCP flips this: **the page itself declares what an agent can do**, with typed schemas, so there's no guessing.
 
 The W3C WebMCP Community Group has an **open, unresolved issue (opened Jan 2026)** explicitly asking the community to develop accessibility use cases for WebMCP. As of this plan, no concrete public reference implementation exists. This is our whitespace and our judging-criteria hook (Potential Impact + Creativity).
+
+**Storytelling (do not pitch “we invented autofill”):**
+- **Before:** Maria tabs field-by-field for 45+ minutes; jargon like “household composition” is opaque; a computer-use agent can still **press Submit** on a half-empty form.
+- **After:** Maria speaks once per section; `explain_field` answers from the **page glossary**, not Wikipedia; `fill_section` writes the same store the UI uses; if the packet is incomplete, **`submit_form` is not in the tool list**.
+- **What we are not claiming:** that other websites magically get ClearPath tools. WebMCP is **per page**. A random IRS/Google Form has no `registerTool` of ours — the agent may still scrape/click, which is exactly the brittle path we contrast.
+- **Official theme fit ([openai.com/webmcp-challenge](https://openai.com/webmcp-challenge/), Devpost rules):** humans and agents on the **same live page**; tools declared so agents do not guess the UI. Stage One is pass/fail on theme + real WebMCP — this product is a human-fillable form **plus** agent tools, not a headless bot.
 
 ### 1.2 Stakeholders / Personas
 
@@ -44,6 +65,15 @@ The W3C WebMCP Community Group has an **open, unresolved issue (opened Jan 2026)
 | Potential Impact | Named personas, a real documented gap (W3C's own open issue), concrete before/after story |
 | Creativity & Ambition | Accessibility-as-the-point, not accessibility-as-an-afterthought; differs from official showcase (3D modeling, doc collab, crossword, itinerary, DuckDB) |
 
+**How we now make those criteria *visible* in &lt;90 seconds (added for Execution + video, not extra tools):**
+
+| Criterion | Extra evidence on the page (post-polish) |
+|---|---|
+| WebMCP Leverage | On-page badge: `submit_form: not registered` vs `registered`; list of currently offered tool names; source contains literal `document.modelContext.registerTool` (Official Rules quote this shape) |
+| Execution | Empty form is clean (errors only after touch / agent fill / validate); income empty shows **0%** not 20%; after submit, copy explains the tool was **unregistered so it cannot be sent twice** — not “0 required items” |
+| Potential Impact | Header bullets: without WebMCP vs with; “ask household composition then try submit while empty” |
+| Creativity | Video **camera** must hit the badge on the negative path — otherwise judges hear “AI form filler” and score Creativity as a mashup |
+
 ### 1.4 Scope
 
 **In scope (MVP — must ship):**
@@ -60,6 +90,18 @@ The W3C WebMCP Community Group has an **open, unresolved issue (opened Jan 2026)
 - File upload handling beyond a mocked step
 - Multi-language i18n (mention it's a natural extension, don't build it)
 - Declarative API (HTML form annotations) — use Imperative API only (`document.modelContext.registerTool`)
+
+**Founder requirements captured this round (additions, not replacements):**
+- Submit **later**; polish first so top-10 has a **basis** (gated submit + a11y story), not a second form.
+- Founder does what the agent cannot: Devpost join/submit, GitHub About (MIT + Website URL), YouTube public video **in English** with narration, VoiceOver pass, ChatGPT in-app browser (or Codex browsing the live URL — same idea: agent + page, not Codex “What should we build?”).
+- Inspector + Gemini API key are **dev-only**; stakeholders and judges **talk to ChatGPT/Codex on the live page**.
+- Hosting: **Vercel** (`clear-path-forms.vercel.app`); production branch should be **`main`** after merge.
+- Demo video still uses the **same spoken prompts** as the original script; the **new** work is pointing the camera at the badge and last-action log.
+
+**Shipped in-scope extras (still one form):**
+- `Reset demo` and `Load complete demo applicant` (Maria Santos) for judges
+- `localStorage` persistence of mock answers
+- Tool Inspector path + real agent path both documented
 
 ---
 
@@ -221,6 +263,8 @@ flowchart LR
 ## 6. WebMCP Tool Specifications (build these exactly)
 
 > All tools registered inside `useEffect` hooks scoped to the relevant component, unregistered via `AbortController` on unmount — per the spec's recommended pattern (this avoids "ghost tools" and is itself a signal of quality to judges/inspectors).
+
+**Implementation note (shipped):** Chrome’s Imperative API `execute` returns a **string** (see Chrome WebMCP docs). The snippets in this section still show the original `{ content: [{ type: "text", ...}] }` shape from the first draft; the running app stringifies JSON for the agent. Registration uses `document.modelContext.registerTool(tool, { signal })` with `navigator.modelContext` as fallback. `submit_form` is omitted when `submitted === true` as well as when the form is invalid.
 
 ### 6.1 `getFormOverview` — always registered (top-level App component)
 ```js
@@ -421,6 +465,11 @@ sequenceDiagram
 - [ ] Get ONE tool (`get_form_overview`) registering and callable end-to-end, verified with the **Model Context Tool Inspector** Chrome extension
 - [ ] (Optional) Submit Netlify credit request form if not done — **due Sep 1, 12pm PT**
 
+**Progress log (original checkboxes above are unchanged):**
+- Day 1–3 engineering: **done** (scaffold, 4 sections, 7 tools, gated submit, Vercel live, Inspector + agent fill of Maria’s name verified).
+- Day 4 polish (badge, agent log, empty-form UX, README Devpost/video copy): **coded, pending git push**.
+- Day 4 video + Devpost: **founder, pending**. Codex “What should we build?” is **not** the demo; ChatGPT/Codex **in-app browser on the Vercel URL** is.
+
 ### Day 2 (Sun Aug 31)
 - [ ] Build all 4 section UI components with full semantic HTML/ARIA
 - [ ] Implement validation engine (pure functions, reused by both UI and tools)
@@ -458,6 +507,7 @@ sequenceDiagram
 | Real agent behavior | ChatGPT desktop app in-app browser, natural-language prompts per each use case (UC-01 to UC-05) |
 | Screen reader smoke test | Turn on NVDA (free) or macOS VoiceOver, tab through the form manually without an agent — confirms your accessibility baseline claim is true, not just marketing |
 | Dynamic registration | Verify `submit_form` is genuinely absent from the tool list until form is valid — screenshot this for your submission text as proof |
+| On-page gating (polish) | Same fact as dynamic registration, but film the **badge** so judges who never open Inspector still see it |
 | Negative paths | Malformed input to `fill_field`, incomplete `fill_section`, premature `submit_form` call |
 
 ---
@@ -471,6 +521,22 @@ Structure exactly per Devpost's required fields:
 3. **What's newly possible:** A screen-reader user can now complete a multi-section bureaucratic form via one conversation instead of dozens of manual field-by-field navigations; the agent literally cannot submit an incomplete form because the tool doesn't exist yet — safety by design, not by prompting.
 4. **How you implemented WebMCP:** 7 tools, Imperative API, dynamic register/unregister tied to form validity, reused business logic shared between UI and tools.
 
+### 11.1 Paste-ready Devpost copy (English — filled from the shipped product)
+
+Use this in addition to the four-point outline above. Edit only if the live app changes.
+
+**Why your use case is a strong fit for WebMCP**  
+The W3C WebMCP Community Group has an open accessibility issue asking for concrete use cases. Long benefits-style forms are a documented failure mode for screen-reader and motor-impaired users: dozens of fields, legal jargon, and a submit control that still works when the form is incomplete. WebMCP fits because the page can declare what an agent may do (`explain_field`, `fill_section`) and **withhold** `submit_form` until validation passes. That is a capability DOM-scraping cannot express.
+
+**How it creates a better user experience**  
+The applicant talks once per section instead of tabbing field-by-field. Jargon is answered from a glossary **on the page**, not from a generic model guess. Sighted users see the form update live; the **last action** and **submit_form registered / not registered** badge make the contract visible without opening DevTools. Manual typing and agent tools share one React reducer, so the UI never disagrees with the agent.
+
+**What people and agents can do together that was difficult or impossible before**  
+Together they can complete a multi-section bureaucratic form in one conversation **and** be structurally unable to submit an incomplete packet: if required fields are missing, `submit_form` is not in the agent’s tool list. Previously, an agent using computer-use could still press Submit; the user had to hope the model checked first.
+
+**How you implemented WebMCP**  
+Seven tools via the Imperative API (`document.modelContext.registerTool`), registered in React effects and unregistered with `AbortController`. Read-only: `get_form_overview`, `explain_field`, `validate_section`. Mutating: `fill_field`, `fill_section`, `navigate_to_section`. `submit_form` is registered only when `isEntireFormValid` is true. Hosted on Vercel; no backend; mock data only. Chrome’s Imperative `execute()` returns a **string** (typically JSON text); tool `description` fields are written so ChatGPT/Codex choose tools instead of guessing.
+
 ## 12. Submission Checklist (map to official rules)
 
 - [ ] Live working URL (Netlify/Vercel), testable in ChatGPT browser or WebMCP Chrome
@@ -480,6 +546,9 @@ Structure exactly per Devpost's required fields:
 - [ ] Demo video: <3 min, public YouTube, audio narration, no copyrighted music/trademarks
 - [ ] Text description covering all 4 required points above
 - [ ] Submitted via `webmcp.devpost.com` before Sep 3, 1:00pm PT
+- [ ] (Added) GitHub About shows MIT + Website set to the Vercel URL
+- [ ] (Added) Video narration in **English**; include one agent **Allow** tap if ChatGPT asks
+- [ ] (Added) Polish commit is on the **live** URL before filming if you want badge/log shots
 
 ## 13. Risk Register
 
@@ -490,6 +559,7 @@ Structure exactly per Devpost's required fields:
 | Time runs out before video/submission text | High if untracked | Hard-block Day 4 for polish + submission only, no new features |
 | Judges test manually and something breaks live | Medium | Add the "Reset demo data" button; keep the happy path bulletproof even if edge cases have minor bugs |
 | Accessibility claim doesn't hold up under scrutiny | Low-Medium | Actually test with a real screen reader once, don't just assume semantic HTML is enough |
+| Polish lives only on laptop (not Vercel) | High until push | Founder must commit/push/merge before filming the badge; otherwise video shows the first deploy |
 
 ## 14. Demo Video Script (≈2:45)
 
@@ -498,6 +568,14 @@ Structure exactly per Devpost's required fields:
 3. **1:30–2:00** — Show the **negative path**: ask agent to submit while incomplete, show it can't (tool isn't even registered), agent explains what's missing
 4. **2:00–2:30** — Complete remaining sections, submit successfully, show `submit_form` now appears/works
 5. **2:30–2:45** — Close: one sentence on WebMCP + one sentence linking to the open W3C accessibility issue you're addressing
+
+**Camera notes (same prompts as above — this is what changed for the video vs the first MVP UI):**
+- Spoken test is **unchanged** (UC-01–UC-04). You do **not** need new ChatGPT lines.
+- **Must show on camera (post-polish UI):** (1) cold open of a **clean** empty form, not a wall of red errors; (2) after fill, the **Last agent or page action** log; (3) incomplete submit → **red badge** `submit_form: not registered`; (4) after Load demo / complete → **green badge** `submit_form: registered`; (5) success screen + badge that the tool unregistered.
+- If you film **today’s Vercel without pushing polish**, the prompts still work; you lose the badge/log shots and the empty form looks harsher. Prefer film **after** polish is on `main`.
+- Language: Official Rules require English (or an English translation) for video, description, and testing instructions.
+- YouTube **Public**, &lt;3:00, **audio narration**, no copyrighted music/trademarks. ChatGPT may show an **Allow** / confirm chip before `fill_field` — that is correct WebMCP; include one Allow tap in the video.
+- Inspector side panel is optional B-roll only. Gemini API key is **not** part of the stakeholder demo.
 
 ---
 
@@ -571,3 +649,113 @@ Close everything, reopen the live URL fresh (simulates a judge who's never seen 
 ---
 
 **Bottom line:** if Test 1 and Test 2 both pass cleanly and your self-score table averages 4+, you're in shippable shape. Want me to append this whole section to the plan document as an appendix, or turn Test 2's prompts into a literal test script you read off while recording the demo video?
+
+---
+
+## Part 3 — As-built vs this original plan (additive log)
+
+Nothing in Parts 1–2 above is deleted. This part records what exists in code and what the founder still owns.
+
+### Stack as built
+React + Vite + TypeScript, React Context + `useReducer`, plain CSS, Imperative WebMCP, Vercel, MIT, mock data + `localStorage`. Single form: Personal information, Household, Income, Documents and review.
+
+### Tools as built (names)
+`get_form_overview`, `explain_field`, `fill_field`, `fill_section`, `validate_section`, `navigate_to_section`, `submit_form` (conditional).
+
+### UX polish vs first live deploy (why it helps top-10 **Execution / Leverage visibility**, not a new product)
+- Empty form: no error spam until the field is touched, an agent fills it, or `validate_section` runs.
+- Section progress % counts **required** fields only (empty Income is 0%, not 20% from an optional employer name).
+- On-page **submit_form** badge + current tool names + last action log — judges who never open Inspector still see gating.
+- Post-submit status explains unregistration instead of “0 required items.”
+- Header how-it-works bullets (DOM guess vs declared tools vs try submit while empty).
+
+### What did **not** change (founder asked)
+- Still **one** MVP form. A “different form” on the public web **cannot** use these tools unless that page registers them.
+- Demo **conversation** for the video is the same Test 2 prompts; only **what you film** on the page changed (badge/log).
+- Top 10 is **not guaranteed** (~4000 Devpost participants). Strongest score lever remains gated `submit_form` + W3C a11y story + English video. Showcase apps with 20+ visual tools can still beat us on spectacle; we win on **mechanism + impact narrative**.
+
+### Founder checklist (cannot be done in the repo alone)
+- [ ] Commit + push polish; merge to `main` if Vercel production is `main`
+- [ ] GitHub About: description + **MIT visible** + Website `https://clear-path-forms.vercel.app`
+- [ ] Join + submit on [webmcp.devpost.com](https://webmcp.devpost.com/) with §11.1 text, repo, live URL, YouTube
+- [ ] Record §14 video in English after polish is live
+- [ ] VoiceOver (or NVDA) tab-through once
+- [ ] After **Sep 3, 2026, 1:00pm PT**: do not edit submission, repo, or live site until winners are announced
+
+### Eligibility reminder (Official Rules)
+Open to majority-age residents of OpenAI API–supported countries; not open to listed OFAC / excluded regions. Submission materials in English. Video &lt; 3 minutes with audio. Live URL required. `registerTool` in public source. AI coding assistance is allowed; the project must remain the entrant’s original work product.
+
+---
+
+## 15. Hướng dẫn test cho đồng đội (ChatGPT + Vercel)
+
+Gửi section này cho teammate. Không cần clone repo. **Nói với ChatGPT**, không nói với form, không dùng Codex “What should we build?”.
+
+### Link
+
+| Cái | URL |
+|---|---|
+| **App live (nộp bài / test agent)** | https://clear-path-forms.vercel.app |
+| Repo | https://github.com/BennedictQuanTon/ClearPath-Forms |
+| Challenge | https://webmcp.devpost.com/ |
+
+Form giả (mock). Không gửi dữ liệu cơ quan nhà nước.
+
+**Ghi chú bản:** Nếu teammate **chưa thấy** badge `submit_form: not registered` / ô Last agent action — đó là bản Vercel chưa merge polish. Tool vẫn chạy; chỉ UI khác. Sau khi founder push, hard refresh (`Cmd+Shift+R`).
+
+---
+
+### A. ChatGPT (cách giám khảo / demo video)
+
+1. Cài/update **ChatGPT desktop** (Mac/Windows): https://chatgpt.com/download — **không** dùng tab Chrome để *chat*.
+2. Trong app, mở **trình duyệt trong ChatGPT** (in-app browser / mở website *bên trong* app).
+3. Dán: `https://clear-path-forms.vercel.app` — đợi form load (banner WebMCP nếu Chrome-flagged; trong ChatGPT banner có thể khác).
+4. **Gõ vào ô chat ChatGPT** (tiếng Anh — tool description đang EN). Nếu hiện *May I enter…* / Allow → **Allow** (đúng, không phải lỗi).
+
+Chạy **đúng thứ tự**:
+
+**1 — Form trống** (nếu form còn data: trên trang bấm **Reset demo**):
+
+- `What does household composition mean?`  
+  Đạt: giải thích field (glossary), không bài luật generic. Form **không** cần đổi.
+
+- `Submit my application`  
+  Đạt: **không** ra màn submitted. Agent nói còn thiếu field. (`submit_form` chưa có trong tool list.)
+
+**2 — Điền:**
+
+- `Fill the full legal name with Maria Elena Santos`  
+  Đạt: ô **Full legal name** trên trang **có chữ**. Nếu không đổi = agent chưa gọi tool.
+
+- (Tuỳ) thêm DOB, địa chỉ bằng một câu tiếng Anh, hoặc bấm **Load complete demo applicant**.
+
+**3 — Nộp khi đủ:**
+
+- Bấm **Load complete demo applicant** nếu chưa full.  
+- `Submit the application` / `Submit it` với confirm nếu agent hỏi.  
+  Đạt: **Practice application submitted**.
+
+**Không làm:** Gemini API key trong Inspector; Codex landing “What should we build?”; mở `127.0.0.1` trong ChatGPT (thường fail — dùng Vercel).
+
+---
+
+### B. Chrome + Inspector (dev, không bắt buộc cho teammate)
+
+1. Chrome 150+ → `chrome://flags/#enable-webmcp-testing` → Enabled → Relaunch.  
+2. Extension: [WebMCP – Model Context Tool Inspector](https://chromewebstore.google.com/detail/gbpdfapgefenggkahomfgkhfehlcenpd)  
+3. Mở https://clear-path-forms.vercel.app → dropdown tool. Form trống: **không** có `submit_form`. Load demo → **có**. Execute `submit_form` với `{"confirm": true}`.
+
+Ô User Prompt trong Inspector cần Gemini key — **bỏ qua**. Dùng Execute Tool.
+
+---
+
+### C. Checklist gửi lại founder
+
+- [ ] ChatGPT mở được Vercel trong in-app browser  
+- [ ] Câu household composition → dùng tool / glossary  
+- [ ] Submit lúc trống → **fail** (đúng)  
+- [ ] Tên Maria hiện trên form sau Allow  
+- [ ] Load demo + submit → success  
+- [ ] (Nếu có polish) thấy badge registered / not registered  
+
+Kẹt: chụp màn hình + **nguyên câu** ChatGPT trả lời, gửi founder.
