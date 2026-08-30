@@ -30,7 +30,7 @@ export function SectionPanel({ sectionId, headingRef }: SectionPanelProps) {
             key={field.id}
             field={field}
             value={section.fields[field.id] ?? null}
-            error={section.errors[field.id]}
+            error={state.touchedFields[field.id] ? section.errors[field.id] : undefined}
             disabled={disabled}
             onChange={(value) =>
               dispatch({

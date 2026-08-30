@@ -7,6 +7,15 @@ import type { SectionId } from "./types/form";
 import { isEntireFormValid, remainingRequired } from "./validation/validate";
 import { useWebMcpTools } from "./webmcp/useWebMcpTools";
 
+const ALWAYS_TOOLS = [
+  "get_form_overview",
+  "explain_field",
+  "fill_field",
+  "fill_section",
+  "validate_section",
+  "navigate_to_section",
+];
+
 export default function App() {
   const { state, dispatch } = useFormState();
   const [announcement, setAnnouncement] = useState("");
@@ -52,6 +61,12 @@ export default function App() {
     announce("Application submitted. This is a practice form. No data was sent to a government agency.");
   }
 
+  const statusCopy = state.submitted
+    ? "Submitted. The form is locked and submit_form has been unregistered so it cannot be sent twice."
+    : formValid
+      ? "All required fields are valid. The submit_form tool is registered for agents."
+      : `${missing.length} required item${missing.length === 1 ? "" : "s"} still need a valid answer. submit_form is not registered — an agent cannot submit yet.`;
+
   return (
     <div className="page">
       <a className="skip-link" href="#main">
@@ -61,10 +76,23 @@ export default function App() {
         <p className="eyebrow">ClearPath Forms</p>
         <h1>Public assistance application</h1>
         <p className="lede">
-          A practice form you can complete yourself or by talking to your AI agent. The page
-          declares real actions through WebMCP, so the agent does not have to guess at the
-          fields.
+          A practice benefits form you can complete yourself or by talking to your AI agent. The
+          page declares typed WebMCP tools, so the agent does not scrape the DOM — and it cannot
+          submit until every required field is valid.
         </p>
+        <ul className="how">
+          <li>
+            <strong>Without WebMCP:</strong> an agent guesses at labels and can still press Submit.
+          </li>
+          <li>
+            <strong>With WebMCP:</strong> <code>explain_field</code>, <code>fill_section</code>, and
+            a gated <code>submit_form</code> that only exists when the form is complete.
+          </li>
+          <li>
+            Ask an agent “What does household composition mean?” then try “Submit my application”
+            while fields are empty.
+          </li>
+        </ul>
         <p className="banner" role="note">
           Mock data only. Nothing here is sent to a government agency.
         </p>
@@ -80,9 +108,12 @@ export default function App() {
         <main id="main">
           {state.submitted ? (
             <div className="success" role="status">
-              <h2 tabIndex={-1} ref={(node) => {
-                if (node) node.focus();
-              }}>
+              <h2
+                tabIndex={-1}
+                ref={(node) => {
+                  if (node) node.focus();
+                }}
+              >
                 Practice application submitted
               </h2>
               <p>
@@ -155,14 +186,24 @@ export default function App() {
         </main>
       </div>
 
-      <aside className="overview" aria-label="Completion status">
-        <h2>Status</h2>
-        <p>
-          {formValid
-            ? "All required fields are valid. The submit_form tool is registered for agents."
-            : `${missing.length} required item${missing.length === 1 ? "" : "s"} still need a valid answer. submit_form is not registered.`}
+      <aside className="overview" aria-label="WebMCP and completion status">
+        <h2>Agent tools on this page</h2>
+        <p className={formValid && !state.submitted ? "badge-on" : "badge-off"}>
+          {state.submitted
+            ? "submit_form: unregistered (already submitted)"
+            : formValid
+              ? "submit_form: registered — an agent may submit"
+              : "submit_form: not registered — form incomplete"}
         </p>
-        {missing.length > 0 ? (
+        <p>
+          Currently offered:{" "}
+          {[...ALWAYS_TOOLS, ...(formValid ? ["submit_form"] : [])].map((name) => (
+            <code key={name}>{name} </code>
+          ))}
+        </p>
+        <h3>Status</h3>
+        <p>{statusCopy}</p>
+        {!state.submitted && missing.length > 0 ? (
           <ul>
             {missing.slice(0, 8).map((id) => (
               <li key={id}>
@@ -171,6 +212,8 @@ export default function App() {
             ))}
           </ul>
         ) : null}
+        <h3>Last agent or page action</h3>
+        <p className="agent-log">{announcement || "None yet. Talk to your agent, or use Reset / Load demo."}</p>
       </aside>
 
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">

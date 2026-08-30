@@ -16,6 +16,7 @@ export interface FormState {
   sections: Record<SectionId, SectionState>;
   submitted: boolean;
   activeSection: SectionId;
+  touchedFields: Record<string, boolean>;
 }
 
 export type FieldKind = "text" | "date" | "email" | "tel" | "number" | "select" | "checkbox";

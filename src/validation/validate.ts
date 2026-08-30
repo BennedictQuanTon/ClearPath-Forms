@@ -13,7 +13,7 @@ function isEmpty(value: FieldValue): boolean {
   return false;
 }
 
-function fieldIsRequired(
+export function fieldIsRequired(
   fieldId: string,
   fields: Record<string, FieldValue>,
 ): boolean {
@@ -150,11 +150,13 @@ export function coerceValue(fieldId: string, raw: unknown): FieldValue {
 }
 
 export function sectionCompletionPercent(state: FormState, sectionId: SectionId): number {
-  const defs = fieldsForSection(sectionId);
-  if (defs.length === 0) return 0;
   const fields = state.sections[sectionId].fields;
-  const validCount = defs.filter(
+  const required = fieldsForSection(sectionId).filter((field) =>
+    fieldIsRequired(field.id, fields),
+  );
+  if (required.length === 0) return 0;
+  const validCount = required.filter(
     (field) => !validateField(field.id, fields[field.id] ?? null, fields),
   ).length;
-  return Math.round((validCount / defs.length) * 100);
+  return Math.round((validCount / required.length) * 100);
 }
