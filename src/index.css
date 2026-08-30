@@ -91,8 +91,18 @@ select {
 }
 
 .lede {
-  max-width: 42rem;
+  max-width: 44rem;
   color: var(--muted);
+}
+
+.how {
+  max-width: 44rem;
+  padding-left: 1.2rem;
+  color: var(--muted);
+}
+
+.how strong {
+  color: var(--ink);
 }
 
 .banner {
@@ -283,9 +293,40 @@ fieldset {
   margin-top: 1.25rem;
 }
 
+.overview h3 {
+  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  font-size: 1rem;
+  margin: 1rem 0 0.35rem;
+}
+
 .overview ul {
   margin: 0.4rem 0 0;
   padding-left: 1.2rem;
+}
+
+.badge-on,
+.badge-off {
+  display: inline-block;
+  padding: 0.4rem 0.7rem;
+  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  font-weight: 700;
+}
+
+.badge-on {
+  background: var(--ok-bg);
+  border: 1px solid var(--accent);
+}
+
+.badge-off {
+  background: #f7ece6;
+  border: 1px solid var(--danger);
+}
+
+.agent-log {
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  background: #eef5f1;
+  border: 1px dashed var(--accent);
 }
 
 code {

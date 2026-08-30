@@ -32,6 +32,7 @@ export function createEmptyState(): FormState {
     sections,
     submitted: false,
     activeSection: "personal_info",
+    touchedFields: {},
   };
 }
 
@@ -68,13 +69,17 @@ export const MARIA_DEMO: Record<SectionId, Record<string, FieldValue>> = {
 
 function loadDemoState(): FormState {
   const base = createEmptyState();
+  const touchedFields: Record<string, boolean> = {};
   for (const sectionId of SECTION_ORDER) {
     base.sections[sectionId] = buildSection(sectionId, {
       ...base.sections[sectionId].fields,
       ...MARIA_DEMO[sectionId],
     });
+    for (const fieldId of Object.keys(MARIA_DEMO[sectionId])) {
+      touchedFields[fieldId] = true;
+    }
   }
-  return base;
+  return { ...base, touchedFields };
 }
 
 export function loadPersistedState(): FormState {
@@ -83,7 +88,11 @@ export function loadPersistedState(): FormState {
     if (!raw) return createEmptyState();
     const parsed = JSON.parse(raw) as FormState;
     if (!parsed.sections?.personal_info) return createEmptyState();
-    return parsed;
+    return {
+      ...createEmptyState(),
+      ...parsed,
+      touchedFields: parsed.touchedFields ?? {},
+    };
   } catch {
     return createEmptyState();
   }
@@ -103,6 +112,7 @@ export function formReducer(state: FormState, action: FormAction): FormState {
       return {
         ...state,
         submitted: false,
+        touchedFields: { ...state.touchedFields, [action.fieldId]: true },
         sections: {
           ...state.sections,
           [action.sectionId]: buildSection(action.sectionId, fields),
@@ -111,15 +121,18 @@ export function formReducer(state: FormState, action: FormAction): FormState {
     }
     case "FILL_SECTION": {
       const fields = { ...state.sections[action.sectionId].fields };
+      const touchedFields = { ...state.touchedFields };
       for (const [key, value] of Object.entries(action.data)) {
         if (FIELDS.some((field) => field.id === key && field.sectionId === action.sectionId)) {
           fields[key] = value;
+          touchedFields[key] = true;
         }
       }
       return {
         ...state,
         submitted: false,
         activeSection: action.sectionId,
+        touchedFields,
         sections: {
           ...state.sections,
           [action.sectionId]: buildSection(action.sectionId, fields),
@@ -130,8 +143,13 @@ export function formReducer(state: FormState, action: FormAction): FormState {
       return { ...state, activeSection: action.sectionId };
     case "VALIDATE_SECTION": {
       const fields = state.sections[action.sectionId].fields;
+      const touchedFields = { ...state.touchedFields };
+      for (const field of fieldsForSection(action.sectionId)) {
+        touchedFields[field.id] = true;
+      }
       return {
         ...state,
+        touchedFields,
         sections: {
           ...state.sections,
           [action.sectionId]: buildSection(action.sectionId, fields),

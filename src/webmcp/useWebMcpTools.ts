@@ -10,7 +10,7 @@ import {
   validateSectionFields,
 } from "../validation/validate";
 import { buildOverview } from "./buildOverview";
-import { getModelContext, toolResult } from "./modelContext";
+import { getModelContext, registerToolWithWebMcp, toolResult } from "./modelContext";
 
 interface ToolHost {
   getState: () => FormState;
@@ -19,13 +19,9 @@ interface ToolHost {
   focusSection: (sectionId: SectionId) => void;
 }
 
-async function register(
-  ctx: ModelContext,
-  tool: ModelContextTool,
-  signal: AbortSignal,
-): Promise<void> {
+async function register(tool: ModelContextTool, signal: AbortSignal): Promise<void> {
   try {
-    await ctx.registerTool(tool, { signal });
+    await registerToolWithWebMcp(tool, { signal });
   } catch (error) {
     console.warn(`WebMCP: could not register ${tool.name}`, error);
   }
@@ -43,7 +39,6 @@ export function useWebMcpTools(host: ToolHost, formValid: boolean, activeSection
     const current = () => hostRef.current;
 
     void register(
-      ctx,
       {
         name: "get_form_overview",
         description:
@@ -56,7 +51,6 @@ export function useWebMcpTools(host: ToolHost, formValid: boolean, activeSection
     );
 
     void register(
-      ctx,
       {
         name: "validate_section",
         description:
@@ -95,7 +89,6 @@ export function useWebMcpTools(host: ToolHost, formValid: boolean, activeSection
     );
 
     void register(
-      ctx,
       {
         name: "navigate_to_section",
         description:
@@ -138,7 +131,6 @@ export function useWebMcpTools(host: ToolHost, formValid: boolean, activeSection
     const fieldIds = fieldsForSection(activeSection).map((field) => field.id);
 
     void register(
-      ctx,
       {
         name: "explain_field",
         description: `Explain in plain language what a field on this public assistance form is asking, with an example answer. The user is currently on the ${SECTION_TITLES[activeSection]} section. Field ids in this section: ${fieldIds.join(", ")}. Also works for field ids from other sections. Use this when the user asks what a term means, such as household composition.`,
@@ -178,7 +170,6 @@ export function useWebMcpTools(host: ToolHost, formValid: boolean, activeSection
     );
 
     void register(
-      ctx,
       {
         name: "fill_field",
         description: `Set one field on the currently visible section (${SECTION_TITLES[activeSection]}). Known field ids here: ${fieldIds.join(", ")}. Dates must be YYYY-MM-DD. Checkbox fields accept true/false. Numbers should be digits only.`,
@@ -236,7 +227,6 @@ export function useWebMcpTools(host: ToolHost, formValid: boolean, activeSection
     );
 
     void register(
-      ctx,
       {
         name: "fill_section",
         description: `Fill several fields at once from information the user said in conversation. Prefer this over many fill_field calls. sectionId: personal_info, household, income, documents. data is an object of fieldId to value. Current section is ${activeSection}. Example: fill_section with sectionId personal_info and data { full_name: "Maria Santos", date_of_birth: "1990-03-04", street_address: "12 Elm Street" }.`,
@@ -324,7 +314,6 @@ export function useWebMcpTools(host: ToolHost, formValid: boolean, activeSection
     const current = () => hostRef.current;
 
     void register(
-      ctx,
       {
         name: "submit_form",
         description:

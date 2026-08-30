@@ -17,7 +17,8 @@ export function FieldControl({ field, value, error, disabled, onChange }: FieldC
   ]
     .filter(Boolean)
     .join(" ");
-  const hint = GLOSSARY[field.id]?.plainLanguage;
+  const fullHint = GLOSSARY[field.id]?.plainLanguage ?? "";
+  const hint = fullHint.includes(". ") ? `${fullHint.split(". ")[0]}.` : fullHint;
   const invalid = Boolean(error);
 
   function handleText(event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
